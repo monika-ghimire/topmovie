@@ -1,0 +1,105 @@
+import { useState, useEffect } from 'react'
+import { useDebounce } from 'react-use';
+import Search from './components/Search'
+import './App.css'
+import Spinner from './components/spinner';
+import Card from './components/card'
+
+
+
+const API_BASE_URL = 'https://api.themoviedb.org/3';
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
+
+const API_OPTIONS = {
+  method: 'GET',
+  headers: {
+    accept: 'application/json',
+    Authorization: `Bearer ${API_KEY}`
+  }
+}
+
+const App = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [errorMessage, setErrorMessage] = useState('')
+  const [movieList,SetMovieList] =useState([]);
+  const [isLoading, setIsLoading] = useState(false)
+  const [debounceSearchTerm , setDebouncedSearchTerm ] = useState('')
+
+  useDebounce(()=> setDebouncedSearchTerm(searchTerm),500,[searchTerm])
+
+  const fetchMovies = async (query = '') => {
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const endpoint = query ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`  :`${API_BASE_URL}/discover/movie?sort_by=popularity.desc`
+      const response = await fetch(endpoint, API_OPTIONS)
+      // alert(response)
+
+      if(!response.ok){
+        throw new Error('faild to fetch movies')
+      }
+
+      const data = await response.json()
+      if(data.Response === 'False' ){
+        setErrorMessage(data.Error || "Faild to fetch movies");
+        SetMovieList([])
+        return;
+      }
+
+      console.log(data)
+      SetMovieList(data.results || [])
+    } catch (error) {
+      console.error(`error fatching movies : ${error} `)
+      setErrorMessage('erroe fetching movie. plz try again later')
+    } finally{
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchMovies(debounceSearchTerm)
+  }, [debounceSearchTerm])
+
+  return (
+    <main>
+      {/* <div className='pattern' /> */}
+
+
+      <div className="wrapper">
+
+        <header>
+          <img src="./hero.png" alt="hero Banner" />
+          <h1>Find <span className="text-gradient"> Movies </span> You'll Enjoy Without the Hassle</h1>
+          <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        </header>
+
+        <section className='all-movies'>
+          <h2 className='mt-[40px]'>All movies </h2>
+          
+
+          {
+            isLoading ? (
+              <Spinner/>
+            ): errorMessage ? ( <p className='text-red-500'>{errorMessage}</p> 
+
+            ) : (
+              <ul>{movieList.map((movie) =>(
+               <Card  key={movie.id} movie={movie}/>
+              ))}</ul>
+            )
+            }
+
+
+
+        </section>
+
+
+
+      </div>
+    </main>
+  )
+}
+
+export default App
